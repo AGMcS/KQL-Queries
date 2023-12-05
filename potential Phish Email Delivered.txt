@@ -1,0 +1,22 @@
+let watchlist = (_GetWatchlist('SenderDomains')| project SenderDomains);
+let starttime = 5d;
+let endtime = 1d;
+let maliciousmail=
+    EmailEvents
+    | where TimeGenerated > ago(starttime) and TimeGenerated < ago (endtime)
+    | where ThreatTypes has_any ("phish", "malware", "Phish, Spam")
+    | project
+        TimeGenerated, ThreatTypes, EmailDirection, DeliveryAction, SenderFromDomain, Subject
+    | summarize SenderCount=dcount(DeliveryAction) by SenderFromDomain
+    | distinct SenderFromDomain;
+EmailEvents
+| where TimeGenerated > ago(starttime)
+| where parse_json(AuthenticationDetails).DMARC == "bestguesspass"
+| project
+    TimeGenerated, ThreatTypes, EmailDirection, DeliveryAction, SenderFromDomain,SenderFromAddress, Subject
+| where SenderFromDomain !in (watchlist)
+| where EmailDirection == "Inbound"
+| where DeliveryAction == "Delivered"
+| where SenderFromDomain in (maliciousmail)
+| where TimeGenerated > ago(starttime) and TimeGenerated < ago (endtime)
+| summarize SenderCount=dcount(DeliveryAction) by SenderFromAddress

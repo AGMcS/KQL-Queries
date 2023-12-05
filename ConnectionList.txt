@@ -1,0 +1,7 @@
+// Domains
+let Domains = (_GetWatchlist('watchlist') | project MalwareDomains);
+CommonSecurityLog
+| where RequestURL has_any (Domains)
+| summarize TotalConnectionsFound = count(), ConnectionList = make_set(RequestURL) by DeviceName
+| extend TotalUniqueConnections = array_length(ConnectionList)
+| sort by TotalUniqueConnections, TotalConnectionsFound
